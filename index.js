@@ -29,13 +29,14 @@ async function callAPIShoppe() {
                   priceDiscountRate
                   commissionRate
                   commission
+                  shopType
                 }
               }
             }
             `,
             operationName: "GetProducts",
             variables: {
-                keyword: "creatina",
+                keyword: "teclado",
                 page: pagina,
                 limit: 50
             }
@@ -71,9 +72,8 @@ async function callAPIShoppe() {
         nodes.forEach(produto => {
 
             if (
-                produto.ratingStar >= 4 &&
-                produto.priceDiscountRate > 30 &&
-                produto.sales > 100
+                produto.priceDiscountRate > 20 &&
+                produto.shopType.includes(1)
             ) {
                 products.push(produto)
             }
@@ -98,7 +98,7 @@ const sheets = google.sheets({
 
 
 async function inserirLista() {
-    
+
     const linhas = products.map(produto => [
         produto.productName,
         `R$${produto.priceMin}`,
@@ -108,7 +108,7 @@ async function inserirLista() {
         produto.sales,
         produto.priceDiscountRate + "%",
         (produto.commissionRate * 100) + "%",
-        `R$${produto.commission}`
+        `R$${Number(produto.commission).toFixed(2).replace(".", ",")}`
     ]);
 
 
@@ -133,9 +133,7 @@ async function inserirLista() {
 async function main() {
 
     await callAPIShoppe();
-
     console.log(products.length, "produtos filtrados");
-
     await inserirLista();
 
 }
