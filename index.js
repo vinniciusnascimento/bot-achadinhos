@@ -8,12 +8,39 @@ import cron from 'node-cron';
 configDotenv();
 
 let products = []
+let keywordIndex = 0
+
+let keywords = [
+    "fone bluetooth",
+    "smartwatch",
+    "air fryer",
+    "ssd",
+    "teclado mecânico",
+    "mouse gamer",
+    "aspirador robô",
+    "chapinha",
+    "caixa de som bluetooth",
+    "power bank",
+    "perfume",
+    "creatina",
+    "whey",
+    "notebook",
+    "iphone",
+    "xiaomi",
+    "samsung",
+    "tv",
+    "cadeira gamer",
+    "monitor gamer"
+]
+
+function sortearNum() {
+    let keywordIndex = Math.floor(Math.random() * (keywords.length - 0 + 1)) + 0;
+    return keywordIndex
+}
 
 // API Shoppe
 async function callAPIShoppe() {
-
     for (let pagina = 1; pagina <= 10; pagina++) {
-
         const payload = JSON.stringify({
             query: `
             query GetProducts($keyword: String, $page: Int, $limit: Int) {
@@ -40,12 +67,11 @@ async function callAPIShoppe() {
             `,
             operationName: "GetProducts",
             variables: {
-                keyword: "gabinete",
+                keyword: keywords[sortearNum()],
                 page: pagina,
                 limit: 50
             }
         });
-
         const timestamp = Math.floor(Date.now() / 1000);
 
         const signature = crypto
@@ -77,7 +103,6 @@ async function callAPIShoppe() {
 
             if (
                 produto.priceDiscountRate > 20 &&
-                // produto.sales > 100 &&
                 produto.shopType.includes(1)
             ) {
                 products.push(produto)
@@ -85,7 +110,7 @@ async function callAPIShoppe() {
         });
     }
 
-    console.log(products)
+    // console.log(products)
 }
 
 // Google Sheets
@@ -164,7 +189,6 @@ FORMATO DA MENSAGEM (siga exatamente esta estrutura):
 
 ⭐ {ratingStar}/5 de avaliação
 🏪 {shopName} {shopType === 1 ? "✅ Loja Oficial" : ""}
-📦 +{sales} vendas
 
 🔗 Garanta o seu agora:
 {offerLink}
@@ -173,7 +197,6 @@ REGRAS:
 - Se priceMin e priceMax forem iguais, mostre só um preço, sem o "de/por"
 - Nunca mostre commission ou commissionRate na mensagem — esses dados são só pra uso interno seu, não aparecem pro grupo
 - Se ratingStar não vier ou for 0, omita essa linha
-- Se sales for baixo (abaixo de 50) ou não vier, omita a linha de vendas (evita passar impressão de produto sem saída)
 - Use no máximo os emojis já indicados no formato, não adicione mais
 - Nunca invente nenhum dado que não veio no JSON
 - Retorne APENAS a mensagem final, sem explicações, sem markdown, sem aspas ao redor
@@ -182,39 +205,26 @@ REGRAS:
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function fazerMensagem(message) {
-    const chatCompletion = await groq.chat.completions.create({
-        messages: [{
-            role: "system",
-            content: systemPromptGeradorMensagem
-        },
-        {
-            role: "user", content: JSON.stringify(message)
-        }],
-        model: "llama-3.3-70b-versatile",
-    });
-
-    return chatCompletion.choices[0].message.content;
-}
-
-async function extrairLink(message) {
-    const chatCompletion = await groq.chat.completions.create({
-        messages: [{
-            role: "system",
-            content: systemPromptLink
-        },
-        {
-            role: "user", content: JSON.stringify(message)
-        }],
-        model: "llama-3.3-70b-versatile",
-    });
-
-    return chatCompletion.choices[0].message.content;
+    try {
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                { role: "system", content: systemPromptGeradorMensagem },
+                { role: "user", content: JSON.stringify(message) }
+            ],
+            model: "llama-3.3-70b-versatile",
+        });
+        return chatCompletion.choices[0].message.content;
+    } catch (err) {
+        if (err.status === 429) {
+            console.error("Rate limit do Groq atingido, pulando esse ciclo.");
+            return null;
+        }
+        throw err;
+    }
 }
 
 // API TELEGRAM
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, { polling: false });
-
-const groupChatId = -1001234567890;
 
 function enviarMensagem(mensagem) {
     bot.sendMessage(process.env.TELEGRAM_GROUP_ID, mensagem)
@@ -223,11 +233,14 @@ function enviarMensagem(mensagem) {
 }
 
 async function main() {
-
     await callAPIShoppe();
     console.log(products.length, "produtos filtrados");
 
     await inserirLista();
+
+    const produtoEscolhido = products.reduce((melhor, atual) =>
+        atual.priceDiscountRate > melhor.priceDiscountRate ? atual : melhor
+    );
 
     let mensagem = await fazerMensagem(products);
     console.log(mensagem);
@@ -237,7 +250,9 @@ async function main() {
     products = []
 }
 
-cron.schedule('*/2 * * * *', () => {
+cron.schedule('*/1 * * * *', () => {
     console.log(`Executando em: ${new Date().toLocaleString()}`);
     main().catch(console.error);
 });
+
+// main().catch(console.error);
