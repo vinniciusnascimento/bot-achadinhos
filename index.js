@@ -2,6 +2,8 @@ import crypto from 'crypto'
 import { google } from 'googleapis';
 import { configDotenv } from 'dotenv';
 import Groq from "groq-sdk"
+import TelegramBot from 'node-telegram-bot-api';
+import cron from 'node-cron';
 
 configDotenv();
 
@@ -38,7 +40,7 @@ async function callAPIShoppe() {
             `,
             operationName: "GetProducts",
             variables: {
-                keyword: "creatina",
+                keyword: "tenis",
                 page: pagina,
                 limit: 50
             }
@@ -194,6 +196,17 @@ async function fazerMensagem(message) {
     return chatCompletion.choices[0].message.content;
 }
 
+// API TELEGRAM
+const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, { polling: false });
+
+const groupChatId = -1001234567890;
+
+function enviarMensagem(mensagem) {
+    bot.sendMessage(process.env.TELEGRAM_GROUP_ID, mensagem)
+        .then(() => console.log('Enviado!'))
+        .catch((err) => console.error('Erro ao enviar:', err));
+}
+
 async function main() {
 
     await callAPIShoppe();
@@ -201,7 +214,10 @@ async function main() {
     await inserirLista();
     let mensagem = await fazerMensagem(products);
     console.log(mensagem);
+    enviarMensagem(mensagem)
 }
 
-
-main().catch(console.error);
+cron.schedule('*/2 * * * *', () => {
+    console.log(`Executando em: ${new Date().toLocaleString()}`);
+    main().catch(console.error);
+});
