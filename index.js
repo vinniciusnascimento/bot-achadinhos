@@ -40,7 +40,7 @@ async function callAPIShoppe() {
             `,
             operationName: "GetProducts",
             variables: {
-                keyword: "tenis",
+                keyword: "gabinete",
                 page: pagina,
                 limit: 50
             }
@@ -77,6 +77,7 @@ async function callAPIShoppe() {
 
             if (
                 produto.priceDiscountRate > 20 &&
+                produto.sales > 100 &&
                 produto.shopType.includes(1)
             ) {
                 products.push(produto)
@@ -140,7 +141,7 @@ Você é um redator especialista em criar mensagens de promoção para grupos de
 Você vai receber um objeto JSON com os seguintes campos:
 - productName: nome do produto
 - offerLink: link da oferta
-- priceMin: menor preço disponível (variação de cor/modelo)
+- priceMin: menor preço disponível (variação de cor/modelo) (coloque a virgula no lugar do ponto quando for centavos)
 - priceMax: maior preço disponível (variação de cor/modelo)
 - ratingStar: avaliação do produto (0 a 5)
 - shopName: nome da loja
@@ -167,8 +168,6 @@ FORMATO DA MENSAGEM (siga exatamente esta estrutura):
 
 🔗 Garanta o seu agora:
 {offerLink}
-
-⏳ Promoções como essa podem acabar a qualquer momento. Aproveite!
 
 REGRAS:
 - Se priceMin e priceMax forem iguais, mostre só um preço, sem o "de/por"
@@ -215,6 +214,7 @@ async function main() {
     let mensagem = await fazerMensagem(products);
     console.log(mensagem);
     enviarMensagem(mensagem)
+    products = []
 }
 
 cron.schedule('*/2 * * * *', () => {
