@@ -95,6 +95,11 @@ async function callAPIShoppe() {
 
         const data = await response.json();
 
+        if (!data.data || !data.data.productOfferV2) {
+            console.error(`Erro na página ${pagina}:`, JSON.stringify(data, null, 2))
+            continue
+        }
+
         const nodes = data.data.productOfferV2.nodes;
 
         console.log(`Página ${pagina}: ${nodes.length} produtos encontrados`);
@@ -156,7 +161,7 @@ async function inserirLista() {
     });
 
 
-    console.log("Produtos enviados para a planilha!");
+    console.log("Produto enviado para a planilha!");
 }
 
 // GROQ API
@@ -216,7 +221,7 @@ async function fazerMensagem(message) {
         return chatCompletion.choices[0].message.content;
     } catch (err) {
         if (err.status === 429) {
-            console.error("Rate limit do Groq atingido, pulando esse ciclo.");
+            console.error("Rate limit do Groq atingido.");
             return null;
         }
         throw err;
@@ -236,13 +241,19 @@ async function main() {
     await callAPIShoppe();
     console.log(products.length, "produtos filtrados");
 
-    await inserirLista();
+
+    if (products.length === 0) {
+        console.log("Nenhum produto encontrado nesse ciclo.");
+        return;
+    }
 
     const produtoEscolhido = products.reduce((melhor, atual) =>
         atual.priceDiscountRate > melhor.priceDiscountRate ? atual : melhor
     );
 
-    let mensagem = await fazerMensagem(products);
+    await inserirLista();
+
+    let mensagem = await fazerMensagem(produtoEscolhido);
     console.log(mensagem);
 
     enviarMensagem(mensagem)
@@ -250,7 +261,7 @@ async function main() {
     products = []
 }
 
-cron.schedule('*/1 * * * *', () => {
+cron.schedule('*/15 * * * *', () => {
     console.log(`Executando em: ${new Date().toLocaleString()}`);
     main().catch(console.error);
 });
