@@ -77,7 +77,7 @@ async function callAPIShoppe() {
 
             if (
                 produto.priceDiscountRate > 20 &&
-                produto.sales > 100 &&
+                // produto.sales > 100 &&
                 produto.shopType.includes(1)
             ) {
                 products.push(produto)
@@ -135,7 +135,7 @@ async function inserirLista() {
 }
 
 // GROQ API
-const systemPrompt = `
+const systemPromptGeradorMensagem = `
 Você é um redator especialista em criar mensagens de promoção para grupos de ofertas (WhatsApp/Telegram).
 
 Você vai receber um objeto JSON com os seguintes campos:
@@ -178,13 +178,29 @@ REGRAS:
 - Nunca invente nenhum dado que não veio no JSON
 - Retorne APENAS a mensagem final, sem explicações, sem markdown, sem aspas ao redor
 `;
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function fazerMensagem(message) {
     const chatCompletion = await groq.chat.completions.create({
         messages: [{
             role: "system",
-            content: systemPrompt
+            content: systemPromptGeradorMensagem
+        },
+        {
+            role: "user", content: JSON.stringify(message)
+        }],
+        model: "llama-3.3-70b-versatile",
+    });
+
+    return chatCompletion.choices[0].message.content;
+}
+
+async function extrairLink(message) {
+    const chatCompletion = await groq.chat.completions.create({
+        messages: [{
+            role: "system",
+            content: systemPromptLink
         },
         {
             role: "user", content: JSON.stringify(message)
@@ -210,10 +226,14 @@ async function main() {
 
     await callAPIShoppe();
     console.log(products.length, "produtos filtrados");
+
     await inserirLista();
+
     let mensagem = await fazerMensagem(products);
     console.log(mensagem);
+
     enviarMensagem(mensagem)
+
     products = []
 }
 
