@@ -1,6 +1,8 @@
 import crypto from 'crypto'
 import { google } from 'googleapis';
 import { configDotenv } from 'dotenv';
+import Groq from "groq-sdk"
+
 configDotenv();
 
 let products = []
@@ -36,7 +38,7 @@ async function callAPIShoppe() {
             `,
             operationName: "GetProducts",
             variables: {
-                keyword: "teclado",
+                keyword: "creatina",
                 page: pagina,
                 limit: 50
             }
@@ -129,13 +131,76 @@ async function inserirLista() {
     console.log("Produtos enviados para a planilha!");
 }
 
+// GROQ API
+const systemPrompt = `
+Você é um redator especialista em criar mensagens de promoção para grupos de ofertas (WhatsApp/Telegram).
+
+Você vai receber um objeto JSON com os seguintes campos:
+- productName: nome do produto
+- offerLink: link da oferta
+- priceMin: menor preço disponível (variação de cor/modelo)
+- priceMax: maior preço disponível (variação de cor/modelo)
+- ratingStar: avaliação do produto (0 a 5)
+- shopName: nome da loja
+- sales: quantidade de vendas
+- priceDiscountRate: percentual de desconto (ex: 45 = 45% OFF)
+- commissionRate: percentual de comissão que você recebe
+- commission: valor da comissão em R$
+- shopType: tipo da loja (ex: "Mall", "Loja Oficial", "Comum")
+
+Com esses dados você deve analisar qual o melhor para divulgar e retornar uma mensagem igual a essa com os dados do produto:
+
+FORMATO DA MENSAGEM (siga exatamente esta estrutura):
+
+🚨 OFERTA DO DIA 🚨
+
+✨ {productName}
+
+💰 Apenas: R$ {priceMin}
+💥 Economize {priceDiscountRate}%
+
+⭐ {ratingStar}/5 de avaliação
+🏪 {shopName} {shopType === 1 ? "✅ Loja Oficial" : ""}
+📦 +{sales} vendas
+
+🔗 Garanta o seu agora:
+{offerLink}
+
+⏳ Promoções como essa podem acabar a qualquer momento. Aproveite!
+
+REGRAS:
+- Se priceMin e priceMax forem iguais, mostre só um preço, sem o "de/por"
+- Nunca mostre commission ou commissionRate na mensagem — esses dados são só pra uso interno seu, não aparecem pro grupo
+- Se ratingStar não vier ou for 0, omita essa linha
+- Se sales for baixo (abaixo de 50) ou não vier, omita a linha de vendas (evita passar impressão de produto sem saída)
+- Use no máximo os emojis já indicados no formato, não adicione mais
+- Nunca invente nenhum dado que não veio no JSON
+- Retorne APENAS a mensagem final, sem explicações, sem markdown, sem aspas ao redor
+`;
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+async function fazerMensagem(message) {
+    const chatCompletion = await groq.chat.completions.create({
+        messages: [{
+            role: "system",
+            content: systemPrompt
+        },
+        {
+            role: "user", content: JSON.stringify(message)
+        }],
+        model: "llama-3.3-70b-versatile",
+    });
+
+    return chatCompletion.choices[0].message.content;
+}
 
 async function main() {
 
     await callAPIShoppe();
     console.log(products.length, "produtos filtrados");
     await inserirLista();
-
+    let mensagem = await fazerMensagem(products);
+    console.log(mensagem);
 }
 
 
