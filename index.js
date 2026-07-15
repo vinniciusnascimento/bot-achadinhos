@@ -1,11 +1,12 @@
 import crypto from 'crypto'
-import google from 'googleapis'
+import { google } from 'googleapis';
 import { configDotenv } from 'dotenv';
 configDotenv();
 
 let products = []
 
-async function chamarAPI() {
+// API Shoppe
+async function callAPIShoppe() {
 
     for (let pagina = 1; pagina <= 10; pagina++) {
 
@@ -32,7 +33,7 @@ async function chamarAPI() {
             `,
             operationName: "GetProducts",
             variables: {
-                keyword: "Tenis",
+                keyword: "Roupas femininas",
                 page: pagina,
                 limit: 50
             }
@@ -80,4 +81,59 @@ async function chamarAPI() {
     console.log(products)
 }
 
-chamarAPI().catch(console.error);
+// Google Sheets
+const auth = new google.auth.GoogleAuth({
+    keyFile: "credentials.json",
+    scopes: [
+        "https://www.googleapis.com/auth/spreadsheets"
+    ]
+});
+
+const sheets = google.sheets({
+    version: "v4",
+    auth
+});
+
+
+async function inserirLista() {
+
+    const linhas = products.map(produto => [
+        produto.productName,
+        `R$${produto.priceMin}`,
+        `R$${produto.priceMax}`,
+        produto.offerLink,
+        produto.shopName,
+        produto.sales
+    ]);
+
+
+    await sheets.spreadsheets.values.update({
+
+        spreadsheetId: process.env.SHEETS_ID,
+
+        range: "A2:F",
+
+        valueInputOption: "RAW",
+
+        requestBody: {
+            values: linhas
+        }
+    });
+
+
+    console.log("Produtos enviados para a planilha!");
+}
+
+
+async function main() {
+
+    await callAPIShoppe();
+
+    console.log(products.length, "produtos filtrados");
+
+    await inserirLista();
+
+}
+
+
+main().catch(console.error);
