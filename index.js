@@ -27,13 +27,15 @@ async function callAPIShoppe() {
                   shopName
                   sales
                   priceDiscountRate
+                  commissionRate
+                  commission
                 }
               }
             }
             `,
             operationName: "GetProducts",
             variables: {
-                keyword: "Roupas femininas",
+                keyword: "creatina",
                 page: pagina,
                 limit: 50
             }
@@ -96,14 +98,17 @@ const sheets = google.sheets({
 
 
 async function inserirLista() {
-
+    
     const linhas = products.map(produto => [
         produto.productName,
         `R$${produto.priceMin}`,
         `R$${produto.priceMax}`,
         produto.offerLink,
         produto.shopName,
-        produto.sales
+        produto.sales,
+        produto.priceDiscountRate + "%",
+        (produto.commissionRate * 100) + "%",
+        `R$${produto.commission}`
     ]);
 
 
@@ -111,7 +116,7 @@ async function inserirLista() {
 
         spreadsheetId: process.env.SHEETS_ID,
 
-        range: "A2:F",
+        range: "A2:I",
 
         valueInputOption: "RAW",
 
