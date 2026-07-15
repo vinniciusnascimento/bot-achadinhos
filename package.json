@@ -1,0 +1,16 @@
+{
+  "name": "bot-achadinhos",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "Vinnicius Nascimento",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "googleapis": "^173.0.0"
+  }
+}
